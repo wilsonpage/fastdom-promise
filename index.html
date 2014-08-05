@@ -1,0 +1,34 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>fastdom-promise example</title>
+  <script src="bower_components/fastdom/index.js"></script>
+  <script src="index.js"></script>
+</head>
+<body>
+<script>
+
+var fastdom = window['fastdom-promise'];
+
+fastdom.read(function() {
+  console.log('read');
+}).thenWrite(function() {
+  console.log('write');
+  throw new Error('error');
+}).then(function() {
+  console.log('done');
+}).catch(function() {
+  console.log('error');
+});
+
+fastdom.read(function() {
+  console.log('read-2');
+});
+
+fastdom.write(function() {
+  console.log('write-2');
+});
+
+</script>
+</body>
+</html>

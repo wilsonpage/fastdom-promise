@@ -1,0 +1,19 @@
+{
+  "name": "fastdom-promise",
+  "main": "index.js",
+  "version": "0.0.0",
+  "authors": [
+    "Wilson Page <wilsonpage@me.com>"
+  ],
+  "license": "MIT",
+  "ignore": [
+    "**/.*",
+    "node_modules",
+    "bower_components",
+    "test",
+    "tests"
+  ],
+  "dependencies": {
+    "fastdom": "~0.8.4"
+  }
+}
