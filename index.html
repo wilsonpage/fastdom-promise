@@ -27,7 +27,7 @@ fastdom.read(function() {
   return 3;
 })
 
-.defer(function(value) {
+.defer(10, function(value) {
   console.log('value: %s', value);
   return 4;
 })
