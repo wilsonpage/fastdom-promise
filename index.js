@@ -1,4 +1,5 @@
 (function(define){define(function(require,exports,module){
+/*jshint expr:true*/
 
 /**
  * Dependencies
@@ -19,6 +20,7 @@ exports.read = function(fn) { return new WrappedPromise(read(fn)); };
  * of `fastdom.read`
  *
  * @param  {Function} fn
+ * @param {Object} [ctx]
  * @return {Promise}
  */
 function read(fn, ctx) {
@@ -35,6 +37,7 @@ function read(fn, ctx) {
  * of `fastdom.write`
  *
  * @param  {Function} fn
+ * @param {Object} [ctx]
  * @return {Promise}
  */
 function write(fn, ctx) {
@@ -50,16 +53,13 @@ function write(fn, ctx) {
  * Promise returning version
  * of `fastdom.defer`
  *
+ * @param {Number} [frame]
  * @param  {Function} fn
+ * @param {Object} [ctx]
  * @return {Promise}
  */
 function defer(frame, fn, ctx) {
-
-  // `frame` is optional
-  if (typeof frame === 'function') {
-    ctx = fn; fn = frame; frame = 1;
-  }
-
+  if (typeof frame == 'function') ctx = fn, fn = frame, frame = 1;
   return new Promise(function(resolve, reject) {
     fastdom.defer(frame, function() {
       try { resolve(fn.call(ctx)); }
@@ -145,17 +145,13 @@ WrappedPromise.prototype.read = function(fn, ctx) {
  * Schedules a 'defer' task once the
  * `WrappedPromise` has resolved.
  *
+ * @param {Number} [frame]
  * @param  {Function} fn
  * @param  {Object}   [ctx]
  * @return {WrappedPromise}
  */
 WrappedPromise.prototype.defer = function(frame, fn, ctx) {
-
-  // `frame` is optional
-  if (typeof frame === 'function') {
-    ctx = fn; fn = frame; frame = 1;
-  }
-
+  if (typeof frame == 'function') ctx = fn, fn = frame, frame = 1;
   return this.then(function(value) {
     return defer(frame, function() {
       return fn.call(ctx, value);
