@@ -12,127 +12,29 @@
 
 var fastdom = window['fastdom-promise'];
 
-/**
- * Argument Forwarding
- */
-
-// fastdom.read(function() {
-//   console.log('read');
-//   return document.body.clientWidth;
-// }).write(function(width) {
-//   console.log('write', width);
-//   result.textContent = 'the body is ' + width + 'px wide';
-// }).then(function() {
-//   console.log('done');
-// });
-
-/**
- * Catching Exceptions
- */
-
-// var p = fastdom.read(function() {
-//   console.log('read');
-//   return document.body.clientWidth;
-// });
-
-// p = p.then(function(width) {
-//   console.log('write');
-//   // throw 'oops';
-// });
-
-// p = p.then(function(width) {
-//   console.log('write');
-//   throw 'oops';
-// });
-
-// p = p.then(function(width) {
-//   console.log('write');
-//   throw 'oops';
-// });
-
-// p.catch(function(e) {
-//   console.error('error', e);
-// });
-
-
-
-var fastdom = {
-  read: function(fn) {
-    return new FastDomPromise(function(resolve, reject) {
-      setTimeout(function() {
-        try { resolve(fn()); }
-        catch (e) { reject(e); }
-      });
-    });
-  },
-  write: function(fn) {
-    return new FastDomPromise(function(resolve, reject) {
-      setTimeout(function() {
-        try { resolve(fn()); }
-        catch (e) { reject(e); }
-      });
-    });
-  }
-};
-
-var list = [];
-
-function FastDomPromise(fn) {
-  var reject;
-  var resolve;
-
-  var promise = new Promise(fn);
-
-  list.push(promise);
-
-  var then = promise.then;
-
-  promise.write = function(fn) {
-    return this.then(function() {
-      return fastdom.write(fn);
-    });
-  };
-
-  promise.then = function(fn) {
-    return new FastDomPromise(function(resolve, reject) {
-      then.call(promise, function() {
-        var nextPromise = fn();
-        then.call(nextPromise, resolve, reject);
-      });
-    });
-  };
-
-  return promise;
-}
-
-
 fastdom.read(function() {
+  console.log(1);
   return 1;
 })
 
-.then(function(arg) {
-  console.log(arg);
+.write(function(value) {
+  console.log('value: %s', value);
   return 2;
 })
 
-.then(function(arg) {
-  console.log(arg);
-  return fastdom.read(function() {
-    throw 3;
-  });
+.read(function(value) {
+  console.log('value: %s', value);
+  return 3;
 })
 
-.then(function(arg) {
-  console.log(arg);
-  return fastdom.read(function() {
-    return 4;
-  });
+.defer(function(value) {
+  console.log('value: %s', value);
+  return 4;
 })
 
 .catch(function(e) {
   console.error('error at: ', e);
 });
-
 
 </script>
 </body>

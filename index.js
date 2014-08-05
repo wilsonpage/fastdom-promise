@@ -6,126 +6,162 @@
 
 var fastdom = require('fastdom');
 
-exports.read = function(fn, args) {
-  return createPromise(function(resolve, reject) {
+/**
+ * Exports
+ */
+
+exports.write = function(fn) { return new WrappedPromise(write(fn)); };
+exports.defer = function(fn) { return new WrappedPromise(defer(fn)); };
+exports.read = function(fn) { return new WrappedPromise(read(fn)); };
+
+/**
+ * Promise returning version
+ * of `fastdom.read`
+ *
+ * @param  {Function} fn
+ * @return {Promise}
+ */
+function read(fn, ctx) {
+  return new Promise(function(resolve, reject) {
     fastdom.read(function() {
-      try { resolve(fn.apply(this, args)); }
+      try { resolve(fn.call(ctx)); }
       catch (e) { reject(e); }
     });
   });
-};
+}
 
-exports.write = function(fn, args) {
-  return createPromise(function(resolve, reject) {
+/**
+ * Promise returning version
+ * of `fastdom.write`
+ *
+ * @param  {Function} fn
+ * @return {Promise}
+ */
+function write(fn, ctx) {
+  return new Promise(function(resolve, reject) {
     fastdom.write(function() {
-      try { resolve(fn.apply(this, args)); }
+      try { resolve(fn.call(ctx)); }
       catch (e) { reject(e); }
     });
   });
-};
-
-exports.defer = function(fn, args) {
-  return createPromise(function(resolve, reject) {
-    fastdom.defer(function() {
-      try { resolve(fn.apply(this, args)); }
-      catch (e) { reject(e); }
-    });
-  });
-};
-
-function createPromise(fn) {
-  var promise = new Promise(fn);
-  var then = promise.then;
-
-  promise.thenWrite = function(fn) {
-    return this.then(function() {
-      return exports.write(fn, arguments);
-    });
-  };
-
-  promise.thenRead = function(fn) {
-    return this.then(function() {
-      return exports.read(fn, arguments);
-    });
-  };
-
-  promise.thenDefer = function(fn) {
-    return this.then(function() {
-      return exports.read(fn, arguments);
-    });
-  };
-
-  promise.then = function(fn) {
-    var self = this;
-    return createPromise(function(resolve, reject) {
-      then.call(self, function() {
-        try { resolve(fn()); }
-        catch (e) { reject(e); }
-      }).catch(function(e) {
-        console.log('waa');
-        reject(e);
-      });
-    });
-
-    // return createPromise(function(resolve, reject) {
-    //   then.call(self, function() {
-    //     try { resolve(fn.apply(this, arguments)); }
-    //     catch (e) { reject(e); }
-    //   });
-    // });
-  };
-
-  promise.read = promise.thenRead;
-  promise.write = promise.thenWrite;
-  promise.defer = promise.thenDefer;
-
-  return promise;
 }
 
-function CustomPromise(fn) {
-  this.promise = new Promise(fn);
+/**
+ * Promise returning version
+ * of `fastdom.defer`
+ *
+ * @param  {Function} fn
+ * @return {Promise}
+ */
+function defer(frame, fn, ctx) {
+
+  // `frame` is optional
+  if (typeof frame === 'function') {
+    ctx = fn; fn = frame; frame = 1;
+  }
+
+  return new Promise(function(resolve, reject) {
+    fastdom.defer(frame, function() {
+      try { resolve(fn.call(ctx)); }
+      catch (e) { reject(e); }
+    });
+  });
 }
 
-CustomPromise.create = function(fn) {
-  return new CustomPromise(fn);
+/**
+ * Wrap a real `Promise` to
+ * provide a chainable
+ * FastDom API.
+ *
+ * @param {Promise} promise
+ */
+function WrappedPromise(promise) {
+  this.promise = promise;
+}
+
+/**
+ * Calls the real `then()` and wraps
+ * the returned `Promise`.
+ *
+ * If we dont use the promise from `.then()`,
+ * but instead create a new Promise, we break
+ * the promise chain and exceptions don't
+ * end up hitting `.catch()`.
+ *
+ * @param  {Function} fn
+ * @return {WrappedPromise}
+ */
+WrappedPromise.prototype.then = function(fn) {
+  var promise = this.promise.then(fn);
+  return new WrappedPromise(promise);
 };
 
-CustomPromise.prototype.thenWrite = function(fn) {
-  return this.then(function() {
-    return exports.write(fn, arguments);
-  });
+/**
+ * Wrap the real `.catch()` to make sure
+ * the `WrappedPromise` is returned and
+ * later chaining continues to work.
+ *
+ * @param  {Function} fn
+ * @return {WrappedPromise}
+ */
+WrappedPromise.prototype.catch = function(fn) {
+  this.promise.catch(fn);
+  return this;
 };
 
-CustomPromise.prototype.thenRead = function(fn) {
-  return this.then(function() {
-    return exports.read(fn, arguments);
-  });
-};
-
-CustomPromise.prototype.thenDefer = function(fn) {
-  return this.then(function() {
-    return exports.read(fn, arguments);
-  });
-};
-
-CustomPromise.prototype.then = function(fn) {
-  var self = this;
-  return CustomPromise.create(function(resolve, reject) {
-    self.promise.then(function() {
-      try { resolve(fn.apply(this, arguments)); }
-      catch (e) { reject(e); }
+/**
+ * Schedules a 'write' task once the
+ * `WrappedPromise` has resolved.
+ *
+ * @param  {Function} fn
+ * @param  {Object}   [ctx]
+ * @return {WrappedPromise}
+ */
+WrappedPromise.prototype.write = function(fn, ctx) {
+  return this.then(function(value) {
+    return write(function() {
+      return fn.call(ctx, value);
     });
   });
 };
 
-CustomPromise.prototype.catch = function(fn) {
-  return this.promise.catch(fn);
+/**
+ * Schedules a 'defer' task once the
+ * `WrappedPromise` has resolved.
+ *
+ * @param  {Function} fn
+ * @param  {Object}   [ctx]
+ * @return {WrappedPromise}
+ */
+WrappedPromise.prototype.read = function(fn, ctx) {
+  return this.then(function(value) {
+    return read(function() {
+      return fn.call(ctx, value);
+    });
+  });
 };
 
-// Shorthand
-CustomPromise.prototype.write = CustomPromise.prototype.thenWrite;
-CustomPromise.prototype.defer = CustomPromise.prototype.thenDefer;
-CustomPromise.prototype.read = CustomPromise.prototype.thenRead;
+/**
+ * Schedules a 'defer' task once the
+ * `WrappedPromise` has resolved.
+ *
+ * @param  {Function} fn
+ * @param  {Object}   [ctx]
+ * @return {WrappedPromise}
+ */
+WrappedPromise.prototype.defer = function(frame, fn, ctx) {
+
+  // `frame` is optional
+  if (typeof frame === 'function') {
+    ctx = fn; fn = frame; frame = 1;
+  }
+
+  return this.then(function(value) {
+    return defer(frame, function() {
+      return fn.call(ctx, value);
+    });
+  });
+};
 
 });})((function(n,w){return typeof define=='function'&&define.amd?
 define:typeof module=='object'?function(c){c(require,exports,module);}:
