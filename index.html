@@ -1,33 +1,138 @@
 <!DOCTYPE html>
 <html>
 <head>
+  <meta charset='utf-8'>
   <title>fastdom-promise example</title>
   <script src="bower_components/fastdom/index.js"></script>
   <script src="index.js"></script>
 </head>
 <body>
+<div id="result"></div>
 <script>
 
 var fastdom = window['fastdom-promise'];
 
-fastdom.read(function() {
-  console.log('read');
-}).thenWrite(function() {
-  console.log('write');
-  throw new Error('error');
-}).then(function() {
-  console.log('done');
-}).catch(function() {
-  console.log('error');
-});
+/**
+ * Argument Forwarding
+ */
+
+// fastdom.read(function() {
+//   console.log('read');
+//   return document.body.clientWidth;
+// }).write(function(width) {
+//   console.log('write', width);
+//   result.textContent = 'the body is ' + width + 'px wide';
+// }).then(function() {
+//   console.log('done');
+// });
+
+/**
+ * Catching Exceptions
+ */
+
+// var p = fastdom.read(function() {
+//   console.log('read');
+//   return document.body.clientWidth;
+// });
+
+// p = p.then(function(width) {
+//   console.log('write');
+//   // throw 'oops';
+// });
+
+// p = p.then(function(width) {
+//   console.log('write');
+//   throw 'oops';
+// });
+
+// p = p.then(function(width) {
+//   console.log('write');
+//   throw 'oops';
+// });
+
+// p.catch(function(e) {
+//   console.error('error', e);
+// });
+
+
+
+var fastdom = {
+  read: function(fn) {
+    return new FastDomPromise(function(resolve, reject) {
+      setTimeout(function() {
+        try { resolve(fn()); }
+        catch (e) { reject(e); }
+      });
+    });
+  },
+  write: function(fn) {
+    return new FastDomPromise(function(resolve, reject) {
+      setTimeout(function() {
+        try { resolve(fn()); }
+        catch (e) { reject(e); }
+      });
+    });
+  }
+};
+
+var list = [];
+
+function FastDomPromise(fn) {
+  var reject;
+  var resolve;
+
+  var promise = new Promise(fn);
+
+  list.push(promise);
+
+  var then = promise.then;
+
+  promise.write = function(fn) {
+    return this.then(function() {
+      return fastdom.write(fn);
+    });
+  };
+
+  promise.then = function(fn) {
+    return new FastDomPromise(function(resolve, reject) {
+      then.call(promise, function() {
+        var nextPromise = fn();
+        then.call(nextPromise, resolve, reject);
+      });
+    });
+  };
+
+  return promise;
+}
+
 
 fastdom.read(function() {
-  console.log('read-2');
+  return 1;
+})
+
+.then(function(arg) {
+  console.log(arg);
+  return 2;
+})
+
+.then(function(arg) {
+  console.log(arg);
+  return fastdom.read(function() {
+    throw 3;
+  });
+})
+
+.then(function(arg) {
+  console.log(arg);
+  return fastdom.read(function() {
+    return 4;
+  });
+})
+
+.catch(function(e) {
+  console.error('error at: ', e);
 });
 
-fastdom.write(function() {
-  console.log('write-2');
-});
 
 </script>
 </body>
